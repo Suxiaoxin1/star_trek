@@ -1,0 +1,14 @@
+node_modules
+.git
+__pycache__
+*.pyc
+.venv
+env
+.pytest_cache
+.coverage
+dist
+build
+*.egg-info
+.env.local
+*.log
+.DS_Store
