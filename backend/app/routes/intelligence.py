@@ -3,7 +3,7 @@ from uuid import UUID
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -36,8 +36,10 @@ async def list_intelligence(
         conditions.append(MarketIntelligence.importance >= importance)
     if keyword:
         conditions.append(
-            MarketIntelligence.title.ilike(f"%{keyword}%") |
-            (MarketIntelligence.summary.ilike(f"%{keyword}%") if hasattr(MarketIntelligence.summary, 'ilike') else True)
+            or_(
+                MarketIntelligence.title.ilike(f"%{keyword}%"),
+                MarketIntelligence.summary.ilike(f"%{keyword}%"),
+            )
         )
 
     # 总数

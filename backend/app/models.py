@@ -13,12 +13,13 @@ Schema 设计说明：
     Competitor  1──N  SentimentData
     AlertRule   1──N  AlertHistory
 """
+import enum
 import uuid
 from datetime import datetime
 
 from sqlalchemy import (
     Column, String, Text, Integer, Float, Boolean,
-    DateTime, ForeignKey, Enum as SAEnum, JSON, BigInteger, Index,
+    DateTime, ForeignKey, JSON, BigInteger, Index,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
@@ -27,13 +28,13 @@ from app.database import Base
 
 
 # ======================= 枚举类型 =======================
-class CompetitorTier(str, SAEnum):
+class CompetitorTier(str, enum.Enum):
     DIRECT = "direct"         # 直接竞品
     INDIRECT = "indirect"     # 间接竞品
     POTENTIAL = "potential"   # 潜在竞品
 
 
-class DataSourceType(str, SAEnum):
+class DataSourceType(str, enum.Enum):
     RSS = "rss"
     API = "api"
     WEB_SCRAPER = "web_scraper"
@@ -42,14 +43,14 @@ class DataSourceType(str, SAEnum):
     MANUAL = "manual"
 
 
-class AnalysisStatus(str, SAEnum):
+class AnalysisStatus(str, enum.Enum):
     DRAFT = "draft"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     ARCHIVED = "archived"
 
 
-class AlertSeverity(str, SAEnum):
+class AlertSeverity(str, enum.Enum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -66,10 +67,10 @@ class Competitor(Base):
     website = Column(String(500), comment="官网地址")
     logo_url = Column(String(1000), comment="Logo 地址")
     tier = Column(
-        SAEnum(CompetitorTier),
-        default=CompetitorTier.DIRECT,
+        String(20),
+        default=CompetitorTier.DIRECT.value,
         index=True,
-        comment="竞品层级",
+        comment="竞品层级: direct/indirect/potential",
     )
     description = Column(Text, comment="竞品描述")
     headquarters = Column(String(200), comment="总部所在地")
@@ -197,7 +198,7 @@ class DataSource(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(300), nullable=False, comment="数据源名称")
     source_type = Column(
-        SAEnum(DataSourceType),
+        String(50),
         nullable=False,
         index=True,
         comment="数据源类型",
@@ -298,8 +299,8 @@ class AnalysisReport(Base):
     title = Column(String(500), nullable=False, comment="报告标题")
     content = Column(Text, comment="报告正文（Markdown）")
     status = Column(
-        SAEnum(AnalysisStatus),
-        default=AnalysisStatus.DRAFT,
+        String(50),
+        default=AnalysisStatus.DRAFT.value,
         index=True,
         comment="状态",
     )
@@ -359,9 +360,9 @@ class AlertRule(Base):
     keywords = Column(JSON, default=list, comment="关键词列表")
     sources = Column(JSON, default=list, comment="监控数据源")
     severity = Column(
-        SAEnum(AlertSeverity),
-        default=AlertSeverity.MEDIUM,
-        comment="严重程度",
+        String(20),
+        default=AlertSeverity.MEDIUM.value,
+        comment="严重程度: low/medium/high/critical",
     )
     notification_channels = Column(
         JSON,
@@ -392,7 +393,7 @@ class AlertHistory(Base):
     )
     title = Column(String(500), nullable=False, comment="预警标题")
     content = Column(Text, comment="预警内容")
-    severity = Column(SAEnum(AlertSeverity), comment="严重程度")
+    severity = Column(String(20), comment="严重程度: low/medium/high/critical")
     triggered_by = Column(String(300), comment="触发数据（来源URL）")
     source_data_id = Column(UUID(as_uuid=True), nullable=True, comment="关联原始数据 ID")
     is_read = Column(Boolean, default=False, index=True, comment="是否已读")

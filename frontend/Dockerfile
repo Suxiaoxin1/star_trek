@@ -6,12 +6,13 @@ LABEL service="competitive-intel-frontend-dev"
 
 WORKDIR /app
 
-# 安装 pnpm（更快、更省空间）
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# 安装 pnpm@9（兼容 Node 20）
+RUN corepack enable && corepack prepare pnpm@9 --activate
 
 COPY package.json pnpm-lock.yaml* ./
 
-RUN pnpm install --frozen-lockfile
+# 有 lockfile 则严格安装，无则自动生成
+RUN if [ -f pnpm-lock.yaml ]; then pnpm install --frozen-lockfile; else pnpm install; fi
 
 COPY . .
 
@@ -25,10 +26,10 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@9 --activate
 
 COPY package.json pnpm-lock.yaml* ./
-RUN pnpm install --frozen-lockfile
+RUN if [ -f pnpm-lock.yaml ]; then pnpm install --frozen-lockfile; else pnpm install; fi
 
 COPY . .
 RUN pnpm build

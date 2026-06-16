@@ -61,6 +61,10 @@ uploads/
 # ==================== OS ====================
 Desktop.ini
 
+# ==================== Celery ====================
+backend/celerybeat-schedule
+backend/celerybeat-schedule.db
+
 # ==================== Project ====================
 .workbuddy/
 .codebuddy/
