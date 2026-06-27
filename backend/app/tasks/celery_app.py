@@ -51,4 +51,9 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.ai_analysis.check_alert_rules",
         "schedule": crontab(minute="*/30"),
     },
+    # 每周一 08:00：LLM 选型评估周报（早于常规周报，供决策参考）
+    "generate-llm-selection-weekly": {
+        "task": "app.tasks.ai_analysis.generate_llm_selection_weekly",
+        "schedule": crontab(minute=0, hour=8, day_of_week=1),
+    },
 }
