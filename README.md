@@ -6,8 +6,48 @@
 
 ---
 
+## 快速开始（5 分钟体验）
+
+> 前置：已安装 [Docker](https://docs.docker.com/get-docker/) 和 [Docker Compose v2](https://docs.docker.com/compose/install/)
+
+```bash
+# 1. 克隆项目
+git clone https://github.com/Suxiaoxin1/star_trek.git
+cd star_trek
+
+# 2. 配置环境变量
+cp .env.example .env
+# 编辑 .env，至少修改以下三项（其他可用默认值）：
+#   POSTGRES_PASSWORD=你的数据库密码
+#   SECRET_KEY=你的密钥
+#   OPENAI_API_KEY=你的AI密钥（不填则AI功能不可用，其他功能正常）
+
+# 3. 一键启动
+docker compose up -d --build
+
+# 4. 等待服务就绪（约 30-60 秒），检查状态
+docker compose ps
+
+# 5. 注册账号并登录
+# 打开浏览器访问 http://localhost:5173 → 点击「注册」→ 创建 admin 账号 → 登录
+```
+
+**启动后访问地址：**
+
+| 服务 | 地址 | 说明 |
+|---|---|---|
+| 前端 | http://localhost:5173 | 系统主界面 |
+| API 文档 | http://localhost:8000/docs | Swagger UI |
+| Nginx 入口 | http://localhost:8080 | 统一入口 |
+| RabbitMQ 管理 | http://localhost:15672 | admin/admin |
+
+> 遇到问题？跳转到 [故障排除](#7-故障排除) 或 [FAQ](#8-常见问题-faq)
+
+---
+
 ## 目录
 
+- [快速开始](#快速开始5-分钟体验)
 - [1. 项目概述](#1-项目概述)
   - [1.1 它解决什么问题](#11-它解决什么问题)
   - [1.2 核心能力一览](#12-核心能力一览)
@@ -29,7 +69,8 @@
   - [5.1 首次部署（Docker Compose）](#51-首次部署docker-compose)
   - [5.2 常用运维命令](#52-常用运维命令)
   - [5.3 本地开发模式](#53-本地开发模式)
-  - [5.4 数据库迁移](#54-数据库迁移)
+  - [5.4 前端生产构建](#54-前端生产构建)
+  - [5.5 数据库迁移](#55-数据库迁移)
 - [6. 使用教程](#6-使用教程)
   - [6.1 登录与角色](#61-登录与角色)
   - [6.2 核心业务流程](#62-核心业务流程)
@@ -376,28 +417,61 @@ OPENAI_MODEL=qwen-plus
 
 ```bash
 # 1. 克隆代码
-git clone <仓库地址>
-cd 自动化竞品分析与市场情报系统
+git clone https://github.com/Suxiaoxin1/star_trek.git
+cd star_trek
 
 # 2. 配置环境变量
 cp .env.example .env
-# 编辑 .env，至少修改 POSTGRES_PASSWORD、SECRET_KEY、OPENAI_API_KEY
+```
 
+编辑 `.env`，**必须修改**以下项（其他可用默认值）：
+
+```env
+POSTGRES_PASSWORD=你的安全密码       # ⚠️ 必改，默认值不安全
+SECRET_KEY=你的随机密钥             # ⚠️ 必改，用于 JWT 签名
+OPENAI_API_KEY=sk-xxx              # 可选，不填则 AI 功能不可用
+```
+
+> **提示**：可以用 `python -c "import secrets; print(secrets.token_urlsafe(32))"` 生成随机 SECRET_KEY
+
+```bash
 # 3. 构建并启动所有服务
 docker compose up -d --build
 
-# 4. 等待服务就绪（约 30-60 秒）
+# 4. 等待服务就绪（约 30-60 秒），检查状态
 docker compose ps
+# 所有服务 State 应为 running (healthy)，如：
+#   ci-backend      running (healthy)
+#   ci-postgres     running (healthy)
+#   ci-redis        running (healthy)
+#   ci-rabbitmq     running (healthy)
 
-# 5. 创建管理员账号（首次）
-docker compose exec backend python -m app.init_admin
-# 或直接访问前端注册页注册第一个 admin 用户
+# 5. 验证服务是否正常
+# 检查后端健康
+curl http://localhost:8000/health
+# 返回 {"status":"healthy"} 表示后端 OK
+
+# 检查 API 文档可访问
+# 浏览器打开 http://localhost:8000/docs
+
+# 6. 注册账号
+# 浏览器打开 http://localhost:5173 → 点击「注册」→ 选择角色创建账号
+# 第一个账号建议选 admin 角色
 ```
 
 启动完成后：
 - 前端：http://localhost:5173
 - API 文档：http://localhost:8000/docs
+- Nginx 入口：http://localhost:8080
 - RabbitMQ 管理：http://localhost:15672（admin/admin）
+
+**Windows 用户**也可以使用快捷脚本：
+
+```powershell
+.\dev.ps1 up        # 启动
+.\dev.ps1 ps        # 检查状态
+.\dev.ps1 logs      # 查看日志
+```
 
 ### 5.2 常用运维命令
 
@@ -468,7 +542,24 @@ npm run dev    # 默认 http://localhost:5173
 
 > 本地开发时，[vite.config.ts](frontend/vite.config.ts) 已配置代理，将 `/api` 转发到 `http://backend:8000`。若后端不在 Docker 内，需把 `target` 改为 `http://localhost:8000`。
 
-### 5.4 数据库迁移
+### 5.4 前端生产构建
+
+前端 Dockerfile 包含三个阶段（`development` / `build` / `production`），生产环境使用预编译的静态文件 + Nginx：
+
+```bash
+# 方式一：Docker 多阶段构建（推荐）
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# 需要创建 docker-compose.prod.yml，将 frontend 的 target 改为 production
+
+# 方式二：手动构建
+cd frontend
+npm run build          # 产出 dist/ 目录
+# 将 dist/ 部署到任意静态服务器，配置反向代理到后端 API
+```
+
+生产环境 Nginx 配置参考 [frontend/nginx-frontend.conf](frontend/nginx-frontend.conf)。
+
+### 5.5 数据库迁移
 
 项目使用 Alembic 管理数据库版本。首次启动时 [main.py](backend/app/main.py) 会自动 `create_all` 建表，但建议使用迁移以支持后续变更：
 
