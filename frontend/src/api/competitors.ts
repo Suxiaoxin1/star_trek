@@ -37,6 +37,9 @@ export const competitorApi = {
   createProduct(competitorId: string, data: ProductCreate) {
     return api.post<Product>(`/competitors/${competitorId}/products`, data)
   },
+  updateProduct(competitorId: string, productId: string, data: Partial<ProductCreate>) {
+    return api.put<Product>(`/competitors/${competitorId}/products/${productId}`, data)
+  },
 
   // ---------- 功能对比 ----------
   listFeatures(competitorId: string, category?: string) {

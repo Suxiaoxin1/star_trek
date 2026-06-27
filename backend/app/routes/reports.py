@@ -1,4 +1,4 @@
-"""分析报告路由 — CRUD"""
+"""分析报告路由 — CRUD（含权限控制）"""
 from uuid import UUID
 from datetime import datetime
 
@@ -6,11 +6,16 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth import RoleChecker
 from app.database import get_db
 from app.models import AnalysisReport, MarketIntelligence
 from app.schemas import ReportCreate, ReportResponse
 
 router = APIRouter()
+
+require_viewer = Depends(RoleChecker("admin", "analyst", "viewer"))
+require_editor = Depends(RoleChecker("admin", "analyst"))
+require_admin = Depends(RoleChecker("admin"))
 
 
 @router.get("/", response_model=dict)
@@ -20,6 +25,7 @@ async def list_reports(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
+    _user=require_viewer,
 ):
     """获取报告列表"""
     conditions = []
@@ -45,7 +51,11 @@ async def list_reports(
 
 
 @router.get("/{report_id}", response_model=dict)
-async def get_report(report_id: UUID, db: AsyncSession = Depends(get_db)):
+async def get_report(
+    report_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _user=require_viewer,
+):
     """获取报告详情"""
     q = select(AnalysisReport).where(AnalysisReport.id == report_id)
     result = (await db.execute(q)).scalars().first()
@@ -59,6 +69,7 @@ async def get_report(report_id: UUID, db: AsyncSession = Depends(get_db)):
 async def create_report(
     payload: ReportCreate,
     db: AsyncSession = Depends(get_db),
+    _user=require_editor,
 ):
     """创建分析报告"""
     if payload.intelligence_id:
@@ -82,6 +93,7 @@ async def update_report(
     report_id: UUID,
     payload: ReportCreate,
     db: AsyncSession = Depends(get_db),
+    _user=require_editor,
 ):
     """更新报告"""
     report = (await db.execute(
@@ -98,3 +110,20 @@ async def update_report(
     await db.flush()
     await db.refresh(report)
     return ReportResponse.model_validate(report).model_dump()
+
+
+@router.delete("/{report_id}")
+async def delete_report(
+    report_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _user=require_admin,
+):
+    """删除报告 — 仅管理员"""
+    report = (await db.execute(
+        select(AnalysisReport).where(AnalysisReport.id == report_id)
+    )).scalars().first()
+    if not report:
+        raise HTTPException(status_code=404, detail="报告不存在")
+    await db.delete(report)
+    await db.flush()
+    return {"detail": "报告已删除"}

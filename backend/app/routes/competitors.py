@@ -1,22 +1,37 @@
-"""竞品管理路由 — 完整 CRUD"""
+"""竞品管理路由 — 完整 CRUD（含权限控制）"""
 from uuid import UUID
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, func, delete
+from sqlalchemy import select, func, delete, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.auth import RoleChecker
 from app.database import get_db
 from app.models import Competitor, Product, CompetitorFeature, PricingHistory
 from app.schemas import (
     CompetitorCreate, CompetitorUpdate, CompetitorResponse,
-    ProductCreate, ProductResponse,
+    ProductCreate, ProductUpdate, ProductResponse,
     FeatureCreate, FeatureResponse,
     PricingHistoryCreate, PricingHistoryResponse,
 )
 
 router = APIRouter()
+
+
+def _map_metadata_to_orm(data: dict) -> dict:
+    """将 Pydantic 的 metadata 字段映射为 ORM 的 metadata_ 属性名"""
+    if "metadata" in data:
+        data["metadata_"] = data.pop("metadata")
+    return data
+
+# 读取权限：任何已登录用户
+require_viewer = Depends(RoleChecker("admin", "analyst", "viewer"))
+# 写入权限：分析师和管理员
+require_editor = Depends(RoleChecker("admin", "analyst"))
+# 删除权限：仅管理员
+require_admin = Depends(RoleChecker("admin"))
 
 
 # ================================================================
@@ -29,8 +44,9 @@ async def list_competitors(
     is_active: bool | None = Query(None),
     keyword: str | None = Query(None, description="搜索关键词"),
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page_size: int = Query(20, ge=1, le=1000),
     db: AsyncSession = Depends(get_db),
+    _user=require_viewer,
 ):
     """获取竞品列表（分页 + 筛选）"""
     conditions = []
@@ -39,7 +55,12 @@ async def list_competitors(
     if is_active is not None:
         conditions.append(Competitor.is_active == is_active)
     if keyword:
-        conditions.append(Competitor.name.ilike(f"%{keyword}%"))
+        conditions.append(
+            or_(
+                Competitor.name.ilike(f"%{keyword}%"),
+                Competitor.name_en.ilike(f"%{keyword}%"),
+            )
+        )
 
     # 查询总数
     count_q = select(func.count(Competitor.id))
@@ -62,7 +83,11 @@ async def list_competitors(
 
 
 @router.get("/{competitor_id}", response_model=dict)
-async def get_competitor(competitor_id: UUID, db: AsyncSession = Depends(get_db)):
+async def get_competitor(
+    competitor_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _user=require_viewer,
+):
     """获取竞品详情（含关联统计）"""
     q = (
         select(Competitor)
@@ -90,9 +115,11 @@ async def get_competitor(competitor_id: UUID, db: AsyncSession = Depends(get_db)
 async def create_competitor(
     payload: CompetitorCreate,
     db: AsyncSession = Depends(get_db),
+    _user=require_editor,
 ):
     """新增竞品"""
-    comp = Competitor(**payload.model_dump())
+    data = _map_metadata_to_orm(payload.model_dump())
+    comp = Competitor(**data)
     db.add(comp)
     await db.flush()
     await db.refresh(comp)
@@ -104,6 +131,7 @@ async def update_competitor(
     competitor_id: UUID,
     payload: CompetitorUpdate,
     db: AsyncSession = Depends(get_db),
+    _user=require_editor,
 ):
     """更新竞品信息"""
     q = select(Competitor).where(Competitor.id == competitor_id)
@@ -111,7 +139,7 @@ async def update_competitor(
     if not comp:
         raise HTTPException(status_code=404, detail="竞品不存在")
 
-    update_data = payload.model_dump(exclude_unset=True)
+    update_data = _map_metadata_to_orm(payload.model_dump(exclude_unset=True))
     for field, value in update_data.items():
         setattr(comp, field, value)
     comp.updated_at = datetime.utcnow()
@@ -126,8 +154,9 @@ async def delete_competitor(
     competitor_id: UUID,
     soft: bool = Query(True, description="软删除（仅标记为不活跃）"),
     db: AsyncSession = Depends(get_db),
+    _user=require_admin,
 ):
-    """删除竞品（默认软删除）"""
+    """删除竞品（默认软删除）— 仅管理员"""
     q = select(Competitor).where(Competitor.id == competitor_id)
     comp = (await db.execute(q)).scalars().first()
     if not comp:
@@ -153,6 +182,7 @@ async def list_products(
     competitor_id: UUID,
     is_active: bool | None = Query(None),
     db: AsyncSession = Depends(get_db),
+    _user=require_viewer,
 ):
     """获取竞品的产品列表"""
     # 先确认竞品存在
@@ -177,6 +207,7 @@ async def create_product(
     competitor_id: UUID,
     payload: ProductCreate,
     db: AsyncSession = Depends(get_db),
+    _user=require_editor,
 ):
     """为竞品新增产品"""
     comp = (await db.execute(
@@ -185,8 +216,35 @@ async def create_product(
     if not comp:
         raise HTTPException(status_code=404, detail="竞品不存在")
 
-    product = Product(competitor_id=competitor_id, **payload.model_dump())
+    product = Product(competitor_id=competitor_id, **_map_metadata_to_orm(payload.model_dump()))
     db.add(product)
+    await db.flush()
+    await db.refresh(product)
+    return ProductResponse.model_validate(product).model_dump()
+
+
+@router.put("/{competitor_id}/products/{product_id}", response_model=dict)
+async def update_product(
+    competitor_id: UUID,
+    product_id: UUID,
+    payload: ProductUpdate,
+    db: AsyncSession = Depends(get_db),
+    _user=require_editor,
+):
+    """更新产品信息"""
+    q = select(Product).where(
+        Product.id == product_id,
+        Product.competitor_id == competitor_id,
+    )
+    product = (await db.execute(q)).scalars().first()
+    if not product:
+        raise HTTPException(status_code=404, detail="产品不存在")
+
+    update_data = _map_metadata_to_orm(payload.model_dump(exclude_unset=True))
+    for field, value in update_data.items():
+        setattr(product, field, value)
+    product.updated_at = datetime.utcnow()
+
     await db.flush()
     await db.refresh(product)
     return ProductResponse.model_validate(product).model_dump()
@@ -201,6 +259,7 @@ async def list_features(
     competitor_id: UUID,
     category: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
+    _user=require_viewer,
 ):
     """获取竞品功能列表（按分类筛选）"""
     comp = (await db.execute(
@@ -233,6 +292,7 @@ async def upsert_feature(
     competitor_id: UUID,
     payload: FeatureCreate,
     db: AsyncSession = Depends(get_db),
+    _user=require_editor,
 ):
     """新增或更新功能点（Upsert）"""
     comp = (await db.execute(
@@ -279,6 +339,7 @@ async def upsert_feature(
 async def list_pricing_history(
     competitor_id: UUID,
     db: AsyncSession = Depends(get_db),
+    _user=require_viewer,
 ):
     """获取竞品价格变动历史"""
     comp = (await db.execute(
@@ -302,6 +363,7 @@ async def record_pricing_change(
     competitor_id: UUID,
     payload: PricingHistoryCreate,
     db: AsyncSession = Depends(get_db),
+    _user=require_editor,
 ):
     """记录价格变动"""
     comp = (await db.execute(

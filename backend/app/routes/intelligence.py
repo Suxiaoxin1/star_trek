@@ -1,4 +1,4 @@
-"""市场情报路由 — CRUD"""
+"""市场情报路由 — CRUD（含权限控制）"""
 from uuid import UUID
 from datetime import datetime
 
@@ -6,11 +6,16 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth import RoleChecker
 from app.database import get_db
 from app.models import Competitor, MarketIntelligence
 from app.schemas import IntelligenceCreate, IntelligenceResponse
 
 router = APIRouter()
+
+require_viewer = Depends(RoleChecker("admin", "analyst", "viewer"))
+require_editor = Depends(RoleChecker("admin", "analyst"))
+require_admin = Depends(RoleChecker("admin"))
 
 
 @router.get("/", response_model=dict)
@@ -23,6 +28,7 @@ async def list_intelligence(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
+    _user=require_viewer,
 ):
     """获取情报列表（分页 + 多维度筛选）"""
     conditions = []
@@ -76,7 +82,10 @@ async def list_intelligence(
 
 
 @router.get("/stats", response_model=dict)
-async def intelligence_stats(db: AsyncSession = Depends(get_db)):
+async def intelligence_stats(
+    db: AsyncSession = Depends(get_db),
+    _user=require_viewer,
+):
     """情报统计概览"""
     # 按分类统计
     cat_q = (
@@ -103,7 +112,11 @@ async def intelligence_stats(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/{intel_id}", response_model=dict)
-async def get_intelligence(intel_id: UUID, db: AsyncSession = Depends(get_db)):
+async def get_intelligence(
+    intel_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _user=require_viewer,
+):
     """获取情报详情"""
     q = select(MarketIntelligence).where(MarketIntelligence.id == intel_id)
     result = (await db.execute(q)).scalars().first()
@@ -123,6 +136,7 @@ async def get_intelligence(intel_id: UUID, db: AsyncSession = Depends(get_db)):
 async def create_intelligence(
     payload: IntelligenceCreate,
     db: AsyncSession = Depends(get_db),
+    _user=require_editor,
 ):
     """新增市场情报"""
     comp = (await db.execute(
@@ -131,10 +145,9 @@ async def create_intelligence(
     if not comp:
         raise HTTPException(status_code=404, detail="竞品不存在")
 
-    intel = MarketIntelligence(
-        **payload.model_dump(),
-        published_at=payload.published_at or datetime.utcnow(),
-    )
+    data = payload.model_dump()
+    data["published_at"] = data["published_at"] or datetime.utcnow()
+    intel = MarketIntelligence(**data)
     db.add(intel)
     await db.flush()
     await db.refresh(intel)
@@ -148,6 +161,7 @@ async def update_intelligence(
     intel_id: UUID,
     payload: IntelligenceCreate,
     db: AsyncSession = Depends(get_db),
+    _user=require_editor,
 ):
     """更新情报"""
     intel = (await db.execute(
@@ -164,3 +178,20 @@ async def update_intelligence(
     await db.flush()
     await db.refresh(intel)
     return IntelligenceResponse.model_validate(intel).model_dump()
+
+
+@router.delete("/{intel_id}")
+async def delete_intelligence(
+    intel_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _user=require_admin,
+):
+    """删除情报 — 仅管理员"""
+    intel = (await db.execute(
+        select(MarketIntelligence).where(MarketIntelligence.id == intel_id)
+    )).scalars().first()
+    if not intel:
+        raise HTTPException(status_code=404, detail="情报不存在")
+    await db.delete(intel)
+    await db.flush()
+    return {"detail": "情报已删除"}

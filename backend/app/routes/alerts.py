@@ -1,4 +1,4 @@
-"""预警管理路由 — CRUD"""
+"""预警管理路由 — CRUD（含权限控制）"""
 from uuid import UUID
 from datetime import datetime
 
@@ -7,11 +7,16 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.auth import RoleChecker
 from app.database import get_db
 from app.models import AlertRule, AlertHistory
 from app.schemas import AlertRuleCreate, AlertRuleResponse, AlertHistoryResponse
 
 router = APIRouter()
+
+require_viewer = Depends(RoleChecker("admin", "analyst", "viewer"))
+require_editor = Depends(RoleChecker("admin", "analyst"))
+require_admin = Depends(RoleChecker("admin"))
 
 
 # ==================== 预警规则 ====================
@@ -20,6 +25,7 @@ router = APIRouter()
 async def list_alert_rules(
     is_active: bool | None = Query(None),
     db: AsyncSession = Depends(get_db),
+    _user=require_viewer,
 ):
     """获取预警规则列表"""
     q = select(AlertRule).order_by(AlertRule.created_at.desc())
@@ -35,6 +41,7 @@ async def list_alert_rules(
 async def create_alert_rule(
     payload: AlertRuleCreate,
     db: AsyncSession = Depends(get_db),
+    _user=require_editor,
 ):
     """创建预警规则"""
     rule = AlertRule(**payload.model_dump())
@@ -49,6 +56,7 @@ async def update_alert_rule(
     rule_id: UUID,
     payload: AlertRuleCreate,
     db: AsyncSession = Depends(get_db),
+    _user=require_editor,
 ):
     """更新预警规则"""
     rule = (await db.execute(
@@ -68,8 +76,12 @@ async def update_alert_rule(
 
 
 @router.delete("/rules/{rule_id}")
-async def delete_alert_rule(rule_id: UUID, db: AsyncSession = Depends(get_db)):
-    """删除预警规则"""
+async def delete_alert_rule(
+    rule_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _user=require_admin,
+):
+    """删除预警规则 — 仅管理员"""
     rule = (await db.execute(
         select(AlertRule).where(AlertRule.id == rule_id)
     )).scalars().first()
@@ -90,6 +102,7 @@ async def list_alert_history(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
+    _user=require_viewer,
 ):
     """获取预警历史"""
     conditions = []
@@ -125,7 +138,11 @@ async def list_alert_history(
 
 
 @router.put("/history/{alert_id}/read")
-async def mark_alert_read(alert_id: UUID, db: AsyncSession = Depends(get_db)):
+async def mark_alert_read(
+    alert_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _user=require_viewer,
+):
     """标记预警为已读"""
     alert = (await db.execute(
         select(AlertHistory).where(AlertHistory.id == alert_id)
@@ -139,8 +156,12 @@ async def mark_alert_read(alert_id: UUID, db: AsyncSession = Depends(get_db)):
 
 
 @router.put("/history/{alert_id}/resolve")
-async def resolve_alert(alert_id: UUID, db: AsyncSession = Depends(get_db)):
-    """标记预警为已处理"""
+async def resolve_alert(
+    alert_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _user=require_editor,
+):
+    """标记预警为已处理 — 分析师和管理员"""
     alert = (await db.execute(
         select(AlertHistory).where(AlertHistory.id == alert_id)
     )).scalars().first()
@@ -153,7 +174,10 @@ async def resolve_alert(alert_id: UUID, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/stats", response_model=dict)
-async def alert_stats(db: AsyncSession = Depends(get_db)):
+async def alert_stats(
+    db: AsyncSession = Depends(get_db),
+    _user=require_viewer,
+):
     """预警统计"""
     unread = (await db.execute(
         select(func.count(AlertHistory.id)).where(AlertHistory.is_read == False)

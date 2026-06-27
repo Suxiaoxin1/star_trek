@@ -6,9 +6,12 @@ import type {
   IntelligenceStats,
 } from '@/types'
 
-export const intelApi = {
+export const intelligenceApi = {
   list(params?: IntelligenceListParams) {
-    return api.get<Paginated<Intelligence>>('/intelligence/', { params })
+    return api.get<{ items: Intelligence[]; total: number; page: number; page_size: number }>(
+      '/intelligence/',
+      { params },
+    )
   },
   get(id: string) {
     return api.get<Intelligence>(`/intelligence/${id}`)
@@ -22,4 +25,10 @@ export const intelApi = {
   stats() {
     return api.get<IntelligenceStats>('/intelligence/stats')
   },
+  remove(id: string) {
+    return api.delete(`/intelligence/${id}`)
+  },
 }
+
+// @deprecated 向后兼容别名，确保 Vite 旧缓存不会报错
+export const intelApi = intelligenceApi
