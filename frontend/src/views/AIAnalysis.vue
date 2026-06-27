@@ -12,6 +12,18 @@
       </div>
     </div>
 
+    <!-- 操作步骤指引 -->
+    <el-alert type="info" :closable="false" show-icon class="guide-alert" v-if="!activeFeature">
+      <template #title>
+        <span class="guide-title">开始使用 AI 智能分析</span>
+      </template>
+      <div class="guide-steps">
+        <div class="guide-step"><span class="step-num">1</span> 选择下方的分析功能</div>
+        <div class="guide-step"><span class="step-num">2</span> 输入待分析的文本或选择情报</div>
+        <div class="guide-step"><span class="step-num">3</span> 点击按钮开始分析，查看结果</div>
+      </div>
+    </el-alert>
+
     <!-- 功能卡片 -->
     <el-row :gutter="20" class="feature-row">
       <!-- 情感分析 -->
@@ -813,6 +825,42 @@ onMounted(() => {
 
 <style scoped>
 .page { padding: 0 10px; }
+
+/* 操作指引 */
+.guide-alert { margin-bottom: 20px; }
+
+.guide-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.guide-steps {
+  display: flex;
+  gap: 32px;
+  margin-top: 8px;
+}
+
+.guide-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #606266;
+}
+
+.step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #409eff;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
 
 .page-header {
   display: flex;

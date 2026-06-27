@@ -152,11 +152,15 @@ async def update_competitor(
 @router.delete("/{competitor_id}")
 async def delete_competitor(
     competitor_id: UUID,
-    soft: bool = Query(True, description="软删除（仅标记为不活跃）"),
+    soft: bool = Query(False, description="软删除（仅标记为不活跃，True=软删，False=硬删）"),
     db: AsyncSession = Depends(get_db),
     _user=require_admin,
 ):
-    """删除竞品（默认软删除）— 仅管理员"""
+    """删除竞品（默认硬删除）— 仅管理员
+
+    - hard delete (默认)：级联删除关联的产品/功能/价格历史/情报/情感数据
+    - soft delete (?soft=true)：仅标记 is_active=False，保留数据
+    """
     q = select(Competitor).where(Competitor.id == competitor_id)
     comp = (await db.execute(q)).scalars().first()
     if not comp:
@@ -166,11 +170,11 @@ async def delete_competitor(
         comp.is_active = False
         comp.updated_at = datetime.utcnow()
         await db.flush()
-        return {"detail": "竞品已停用（软删除）"}
+        return {"detail": "竞品已停用（软删除）", "soft": True}
     else:
         await db.delete(comp)
         await db.flush()
-        return {"detail": "竞品已永久删除"}
+        return {"detail": "竞品已永久删除", "soft": False}
 
 
 # ================================================================

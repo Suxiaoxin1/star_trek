@@ -400,8 +400,32 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
   color: #fff;
+  position: relative;
+  padding: 0;
+}
+
+/* 通过 deep 选择器强制 el-icon 组件占满父容器并居中其内部 svg */
+.stat-icon :deep(.el-icon) {
+  width: 26px;
+  height: 26px;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  font-size: 26px;
+  line-height: 1;
+}
+
+.stat-icon :deep(svg) {
+  width: 26px;
+  height: 26px;
+  display: block;
+  margin: 0;
+  padding: 0;
+  vertical-align: middle;
+  fill: currentColor;
 }
 
 .stat-total .stat-icon { background: linear-gradient(135deg, #409eff, #66b1ff); }

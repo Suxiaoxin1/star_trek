@@ -2,6 +2,7 @@
   <div class="page">
     <div class="page-header">
       <h2>市场情报</h2>
+      <p class="page-desc">收集和整理竞品市场动态，支持 AI 情感分析与摘要提取</p>
       <div class="header-actions">
         <el-button type="success" @click="handleBatchAISentiment" :loading="aiSentimentLoading">
           <el-icon><MagicStick /></el-icon>AI 情感分析
@@ -663,6 +664,13 @@ onMounted(() => {
 }
 
 .page-header h2 { margin: 0; }
+
+.page-desc {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #909399;
+  font-weight: 400;
+}
 
 .header-actions {
   display: flex;

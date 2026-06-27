@@ -1,48 +1,101 @@
 <template>
   <div class="dashboard">
-    <h2>仪表盘</h2>
-
     <!-- 统计卡片 -->
     <el-row :gutter="20" class="stat-row">
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card" v-loading="loading.competitors" @click="router.push('/competitors')">
-          <div class="stat-value">{{ stats.competitors }}</div>
-          <div class="stat-label">监控竞品</div>
-        </el-card>
+        <div class="stat-card gradient-blue" v-loading="loading.competitors" @click="router.push('/competitors')">
+          <div class="stat-icon-wrap">
+            <el-icon :size="28"><OfficeBuilding /></el-icon>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value">{{ stats.competitors }}</div>
+            <div class="stat-label">监控竞品</div>
+          </div>
+        </div>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card" v-loading="loading.intel" @click="router.push('/intelligence')">
-          <div class="stat-value">{{ stats.intelTotal }}</div>
-          <div class="stat-label">情报条目</div>
-        </el-card>
+        <div class="stat-card gradient-green" v-loading="loading.intel" @click="router.push('/intelligence')">
+          <div class="stat-icon-wrap">
+            <el-icon :size="28"><TrendCharts /></el-icon>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value">{{ stats.intelTotal }}</div>
+            <div class="stat-label">情报条目</div>
+          </div>
+        </div>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card" v-loading="loading.competitors" @click="router.push('/alerts')">
-          <div class="stat-value">{{ stats.activeRules }}</div>
-          <div class="stat-label">活跃预警规则</div>
-        </el-card>
+        <div class="stat-card gradient-orange" v-loading="loading.alerts" @click="router.push('/alerts')">
+          <div class="stat-icon-wrap">
+            <el-icon :size="28"><Bell /></el-icon>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value">{{ stats.activeRules }}</div>
+            <div class="stat-label">活跃预警规则</div>
+          </div>
+        </div>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card" v-loading="loading.alerts" @click="router.push('/alerts')">
-          <div class="stat-value" :class="{ 'stat-warn': stats.unreadAlerts > 0 }">{{ stats.unreadAlerts }}</div>
-          <div class="stat-label">未读预警</div>
-        </el-card>
+        <div class="stat-card gradient-red" v-loading="loading.alerts" @click="router.push('/alerts')">
+          <div class="stat-icon-wrap">
+            <el-icon :size="28"><Warning /></el-icon>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value" :class="{ 'value-warn': stats.unreadAlerts > 0 }">{{ stats.unreadAlerts }}</div>
+            <div class="stat-label">未读预警</div>
+          </div>
+        </div>
       </el-col>
     </el-row>
+
+    <!-- 快捷操作 -->
+    <el-card class="quick-actions" shadow="never">
+      <template #header>
+        <span class="section-title">快捷操作</span>
+      </template>
+      <el-row :gutter="16">
+        <el-col :span="6">
+          <div class="action-item" @click="router.push('/competitors')">
+            <el-icon :size="22" color="#409eff"><Plus /></el-icon>
+            <span>新增竞品</span>
+          </div>
+        </el-col>
+        <el-col :span="6">
+          <div class="action-item" @click="router.push('/intelligence')">
+            <el-icon :size="22" color="#67c23a"><EditPen /></el-icon>
+            <span>添加情报</span>
+          </div>
+        </el-col>
+        <el-col :span="6">
+          <div class="action-item" @click="router.push('/ai-analysis')">
+            <el-icon :size="22" color="#e6a23c"><MagicStick /></el-icon>
+            <span>AI 分析</span>
+          </div>
+        </el-col>
+        <el-col :span="6">
+          <div class="action-item" @click="router.push('/datasources')">
+            <el-icon :size="22" color="#909399"><Link /></el-icon>
+            <span>配置数据源</span>
+          </div>
+        </el-col>
+      </el-row>
+    </el-card>
 
     <!-- 图表区域 -->
     <el-row :gutter="20" style="margin-top: 20px">
       <el-col :span="16">
-        <el-card>
+        <el-card shadow="never">
           <template #header>
             <div class="card-header">
-              <span>情报分类分布</span>
+              <span class="section-title">情报分类分布</span>
               <span v-if="!loading.intel" class="card-sub">共 {{ stats.intelTotal }} 条</span>
             </div>
           </template>
           <div v-if="loading.intel" class="chart-placeholder"><el-icon :size="24" class="is-loading"><Loading /></el-icon></div>
           <div v-else-if="intelCategories.length === 0" class="chart-placeholder">
-            <el-empty description="暂无情报数据" :image-size="80" />
+            <el-empty description="暂无情报数据">
+              <el-button type="primary" size="small" @click="router.push('/intelligence')">添加情报</el-button>
+            </el-empty>
           </div>
           <div v-else class="category-grid">
             <div v-for="cat in intelCategories" :key="cat.name" class="category-item">
@@ -54,10 +107,11 @@
         </el-card>
       </el-col>
       <el-col :span="8">
-        <el-card>
+        <el-card shadow="never">
           <template #header>
             <div class="card-header">
-              <span>最新动态</span>
+              <span class="section-title">最新动态</span>
+              <el-button v-if="recentIntel.length > 0" link type="primary" size="small" @click="router.push('/intelligence')">查看全部</el-button>
             </div>
           </template>
           <div v-if="loading.intel" class="chart-placeholder">
@@ -115,7 +169,6 @@ const recentIntel = ref<any[]>([])
 const categoryColors = ['#409eff', '#67c23a', '#e6a23c', '#f56c6c', '#909399', '#b37feb', '#36cfc9', '#ff85c0']
 
 async function loadStats() {
-  // 并行加载所有数据
   loading.competitors = true
   loading.intel = true
   loading.alerts = true
@@ -128,14 +181,11 @@ async function loadStats() {
       intelligenceApi.list({ page: 1, page_size: 8 }),
     ])
 
-    // 竞品数量
     stats.competitors = compRes.data.total
 
-    // 情报统计
     const is = intelStatsRes.data
     stats.intelTotal = is.total || 0
 
-    // 分类分布
     const catMap: Record<string, number> = is.by_category || {}
     const entries = Object.entries(catMap)
     const maxCount = Math.max(1, ...Object.values(catMap))
@@ -146,14 +196,12 @@ async function loadStats() {
       color: categoryColors[i % categoryColors.length],
     }))
 
-    // 预警统计
     stats.unreadAlerts = alertStatsRes.data.unread_alerts || 0
     stats.activeRules = alertStatsRes.data.active_rules || 0
 
-    // 最新情报
     recentIntel.value = recentRes.data.items || []
   } catch {
-    // 静默处理，卡片显示 0
+    // 静默处理
   } finally {
     loading.competitors = false
     loading.intel = false
@@ -184,16 +232,98 @@ onMounted(() => {
 <style scoped>
 .dashboard { padding: 0 10px; }
 
+/* ===== 统计卡片 ===== */
 .stat-row { margin-bottom: 20px; }
 
-.stat-card { text-align: center; cursor: pointer; transition: transform 0.2s; }
-.stat-card:hover { transform: translateY(-2px); }
+.stat-card {
+  display: flex;
+  align-items: center;
+  padding: 24px 20px;
+  border-radius: 12px;
+  color: white;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  min-height: 100px;
+}
 
-.stat-value { font-size: 32px; font-weight: bold; color: #409eff; }
-.stat-value.stat-warn { color: #e6a23c; }
+.stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
 
-.stat-label { font-size: 14px; color: #909399; margin-top: 8px; }
+.stat-icon-wrap {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
 
+.stat-info {
+  margin-left: 16px;
+}
+
+.stat-value {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.value-warn {
+  color: #fff;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+.stat-label {
+  font-size: 13px;
+  opacity: 0.85;
+  margin-top: 4px;
+}
+
+/* 渐变背景 */
+.gradient-blue {
+  background: linear-gradient(135deg, #409eff 0%, #337ecc 100%);
+}
+.gradient-green {
+  background: linear-gradient(135deg, #67c23a 0%, #529b2e 100%);
+}
+.gradient-orange {
+  background: linear-gradient(135deg, #e6a23c 0%, #cf8e24 100%);
+}
+.gradient-red {
+  background: linear-gradient(135deg, #f56c6c 0%, #dd4a4a 100%);
+}
+
+/* ===== 快捷操作 ===== */
+.quick-actions { margin-bottom: 0; }
+
+.section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.action-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-size: 14px;
+  color: #303133;
+  font-weight: 500;
+}
+
+.action-item:hover {
+  background: #f5f7fa;
+}
+
+/* ===== 卡片 ===== */
 .card-header {
   display: flex;
   justify-content: space-between;
@@ -210,7 +340,7 @@ onMounted(() => {
   justify-content: center;
   color: #c0c4cc;
   background: #fafafa;
-  border-radius: 4px;
+  border-radius: 8px;
 }
 
 .category-grid { padding: 8px 0; }

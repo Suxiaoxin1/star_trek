@@ -2,6 +2,7 @@
   <div class="page">
     <div class="page-header">
       <h2>分析报告</h2>
+      <p class="page-desc">管理 AI 生成或人工撰写的竞品分析报告</p>
       <div class="header-actions">
         <el-button type="success" @click="router.push('/ai-analysis')">
           <el-icon><MagicStick /></el-icon>AI 生成报告
@@ -510,6 +511,13 @@ onMounted(() => {
 }
 
 .page-header h2 { margin: 0; }
+
+.page-desc {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #909399;
+  font-weight: 400;
+}
 
 .header-actions {
   display: flex;

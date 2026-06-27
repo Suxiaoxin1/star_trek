@@ -3,6 +3,7 @@
     <!-- 顶部操作栏 -->
     <div class="page-header">
       <h2>竞品管理</h2>
+      <p class="page-desc">建立竞争对手档案，跟踪产品动态、功能特性与价格变化</p>
       <el-button type="primary" @click="openCreateDialog">
         <el-icon><Plus /></el-icon>新增竞品
       </el-button>
@@ -410,6 +411,13 @@ onMounted(() => {
 }
 
 .page-header h2 { margin: 0; }
+
+.page-desc {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #909399;
+  font-weight: 400;
+}
 
 .filter-card { margin-bottom: 16px; }
 .filter-card .el-form { margin-bottom: -8px; }

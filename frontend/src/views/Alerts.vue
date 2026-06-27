@@ -2,6 +2,7 @@
   <div class="page">
     <div class="page-header">
       <h2>预警中心</h2>
+      <p class="page-desc">配置预警规则，及时发现竞品重大动态</p>
     </div>
 
     <!-- 统计概览 -->
@@ -621,6 +622,13 @@ onMounted(() => {
 }
 
 .page-header h2 { margin: 0; }
+
+.page-desc {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #909399;
+  font-weight: 400;
+}
 
 /* 统计卡片 */
 .stats-row { margin-bottom: 16px; }
