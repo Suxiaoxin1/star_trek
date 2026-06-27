@@ -388,8 +388,9 @@ class AlertHistory(Base):
     rule_id = Column(
         UUID(as_uuid=True),
         ForeignKey("alert_rules.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
         index=True,
+        comment="关联预警规则 ID（可为空，用于非规则触发的通知）",
     )
     title = Column(String(500), nullable=False, comment="预警标题")
     content = Column(Text, comment="预警内容")
