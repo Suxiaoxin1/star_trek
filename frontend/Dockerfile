@@ -9,6 +9,9 @@ WORKDIR /app
 # 安装 pnpm@9（兼容 Node 20）
 RUN corepack enable && corepack prepare pnpm@9 --activate
 
+# 配置国内镜像源，解决 Docker 构建下载慢的问题
+RUN pnpm config set registry https://registry.npmmirror.com/
+
 COPY package.json pnpm-lock.yaml* ./
 
 # 有 lockfile 则严格安装，无则自动生成
@@ -27,6 +30,9 @@ FROM node:20-alpine AS build
 WORKDIR /app
 
 RUN corepack enable && corepack prepare pnpm@9 --activate
+
+# 配置国内镜像源，解决 Docker 构建下载慢的问题
+RUN pnpm config set registry https://registry.npmmirror.com/
 
 COPY package.json pnpm-lock.yaml* ./
 RUN if [ -f pnpm-lock.yaml ]; then pnpm install --frozen-lockfile; else pnpm install; fi

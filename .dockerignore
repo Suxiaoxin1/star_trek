@@ -1,5 +1,7 @@
 node_modules
 .git
+.gitignore
+.gitattributes
 __pycache__
 *.pyc
 .venv
@@ -10,5 +12,14 @@ dist
 build
 *.egg-info
 .env.local
+.env.*.local
 *.log
 .DS_Store
+Thumbs.db
+*.md
+!README.md
+.cursor
+.idea
+.vscode
+*.swp
+*.swo

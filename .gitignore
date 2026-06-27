@@ -68,3 +68,6 @@ backend/celerybeat-schedule.db
 # ==================== Project ====================
 .workbuddy/
 .codebuddy/
+
+# ==================== Playwright CLI 临时文件 ====================
+.playwright-cli/
